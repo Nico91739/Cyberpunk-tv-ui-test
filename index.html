@@ -49,9 +49,9 @@ body{
 
 /* GRID */
 .main{flex:1;display:flex;flex-direction:column;justify-content:center;gap:4vh;padding:2vh 2vw}
-.row{display:flex;justify-content:center;gap:3vw}
+.row{display:flex;justify-content:center;gap:2.5vw}
 .app{
-  position:relative;width:24vw;height:27vh;background:var(--panel);
+  position:relative;width:19.5vw;height:26vh;background:var(--panel);
   border:2px solid var(--cyan-dim);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4vh;
   color:var(--cyan);opacity:.82;
@@ -62,8 +62,14 @@ body{
 .app::before{top:-3px;left:-3px;border-right:0;border-bottom:0}
 .app::after{bottom:-3px;right:-3px;border-left:0;border-top:0}
 .tag{position:absolute;top:1.2vh;left:1.2vw;font-size:1.5vh;letter-spacing:.2em;opacity:.55}
-.ico{font-size:8vh;line-height:1;font-weight:900}
-.name{font-size:3.4vh;font-weight:700;letter-spacing:.22em}
+.ico{font-size:7.5vh;line-height:1;font-weight:900}
+.name{font-size:2.8vh;font-weight:700;letter-spacing:.14em;text-align:center}
+.sub{font-size:1.5vh;letter-spacing:.2em;opacity:.65;margin-top:-.8vh}
+.app.src{border-color:#6b5f00}
+#toast{position:fixed;left:50%;bottom:9vh;transform:translateX(-50%);padding:1.6vh 2.5vw;background:#000;
+  border:2px solid var(--red);color:var(--red);font-size:2vh;letter-spacing:.2em;
+  box-shadow:0 0 18px rgba(255,42,85,.5);opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.on{opacity:1}
 .app.sel{
   transform:scale(1.07);opacity:1;border-color:var(--yellow);color:var(--yellow);
   box-shadow:0 0 18px rgba(252,238,10,.65),0 0 48px rgba(252,238,10,.28),inset 0 0 22px rgba(252,238,10,.18);
@@ -101,13 +107,17 @@ body{
       <a class="app" data-url="https://www.netflix.com"><span class="tag">APP_01</span><span class="ico">N</span><span class="name">Netflix</span></a>
       <a class="app" data-url="https://www.youtube.com/tv"><span class="tag">APP_02</span><span class="ico">&#9654;</span><span class="name">YouTube</span></a>
       <a class="app" data-url="https://www.primevideo.com"><span class="tag">APP_03</span><span class="ico">P</span><span class="name">Prime Video</span></a>
+      <a class="app" data-url="https://app.plex.tv"><span class="tag">APP_04</span><span class="ico">&#10095;</span><span class="name">Plex</span></a>
     </div>
     <div class="row">
-      <a class="app" data-url="https://app.plex.tv"><span class="tag">APP_04</span><span class="ico">&#10095;</span><span class="name">Plex</span></a>
       <a class="app" data-url="https://www.google.com"><span class="tag">APP_05</span><span class="ico">&#9678;</span><span class="name">Browser Web</span></a>
+      <a class="app src" data-hdmi="1"><span class="tag">HDMI_01</span><span class="ico">&#9635;</span><span class="name">PS4</span><span class="sub">HDMI 1</span></a>
+      <a class="app src" data-hdmi="2"><span class="tag">HDMI_02</span><span class="ico">&#9635;</span><span class="name">HDMI 2</span><span class="sub">INGRESSO</span></a>
+      <a class="app src" data-tv="1"><span class="tag">LIVE</span><span class="ico">&#9636;</span><span class="name">TV Live</span><span class="sub">CANALI</span></a>
     </div>
   </main>
 
+  <div id="toast"></div>
   <footer class="foot">
     <span><b>&#9664; &#9650; &#9660; &#9654;</b> NAVIGA</span>
     <span id="sel">// SELECT: NETFLIX</span>
@@ -126,11 +136,35 @@ body{
     cur=rows[r][c];cur.classList.add('sel');
     selEl.textContent='// SELECT: '+cur.querySelector('.name').textContent;
   }
+  var toastEl=document.getElementById('toast'),tt;
+  function toast(m){
+    toastEl.textContent=m;toastEl.classList.add('on');
+    clearTimeout(tt);tt=setTimeout(function(){toastEl.classList.remove('on');},3500);
+  }
+  /* Cambio sorgente TV (funziona solo come app Tizen con privilegio tv.window) */
+  function setSource(src){
+    var tz=window.tizen;
+    if(!tz||!tz.tvwindow){toast('// ERR: RICHIEDE APP TIZEN INSTALLATA');return;}
+    function fail(){toast('// ERR: SORGENTE NON DISPONIBILE');}
+    try{
+      tz.tvwindow.setSource(src,function(){
+        tz.tvwindow.show(function(){
+          try{tz.application.getCurrentApplication().hide();}catch(e){}
+        },fail,['0px','0px','1920px','1080px'],'MAIN');
+      },fail);
+    }catch(e){fail();}
+  }
   function launch(){
     if(!cur)return;
     cur.classList.add('go');
-    var u=cur.getAttribute('data-url');
-    setTimeout(function(){cur.classList.remove('go');window.location.href=u;},350);
+    var el=cur;
+    setTimeout(function(){
+      el.classList.remove('go');
+      var h=el.getAttribute('data-hdmi'),u=el.getAttribute('data-url');
+      if(h)setSource({type:'HDMI',number:parseInt(h,10)});
+      else if(el.hasAttribute('data-tv'))setSource({type:'TV'});
+      else if(u)window.location.href=u;
+    },350);
   }
 
   document.addEventListener('keydown',function(e){
